@@ -1,0 +1,18 @@
+{
+  "name": "ilgam",
+  "version": "0.1.0",
+  "private": true,
+  "description": "일용직 구인구직 직거래 플랫폼",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "seed": "node src/seed.js",
+    "test": "node --test --test-reporter=spec tests/*.test.js"
+  },
+  "engines": {
+    "node": ">=22.13"
+  },
+  "dependencies": {
+    "express": "^5.3.0"
+  }
+}
