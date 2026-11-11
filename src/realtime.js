@@ -40,17 +40,7 @@ function attachRealtime(server, db, options) {
   let nextId = 1;
   let day = R.kstDay(opts.now());
 
-  const tallyStmt = db.prepare('SELECT choice, COUNT(*) AS n FROM votes WHERE room = ? AND day = ? GROUP BY choice');
-  const myVoteStmt = db.prepare('SELECT choice FROM votes WHERE room = ? AND day = ? AND uid = ?');
-  const voteStmt = db.prepare(`INSERT INTO votes (room, day, uid, choice) VALUES (?, ?, ?, ?)
-    ON CONFLICT (room, day, uid) DO UPDATE SET choice = excluded.choice`);
   const reportStmt = db.prepare('INSERT INTO reports (reporter_uid, target_pid, target_name, room, text) VALUES (?, ?, ?, ?, ?)');
-
-  function tally(roomId) {
-    const t = { A: 0, B: 0 };
-    for (const row of tallyStmt.all(roomId, day.key)) t[row.choice] = row.n;
-    return t;
-  }
 
   const send = (ws, msg) => { if (ws.readyState === 1) ws.send(JSON.stringify(msg)); };
   function broadcast(room, msg, except) {
@@ -63,14 +53,7 @@ function attachRealtime(server, db, options) {
 
   function sendInit(p) {
     const room = rooms.get(p.room);
-    const question = R.questionFor(room.def, day.index);
-    send(p.ws, {
-      t: 'init', you: p.id, room: p.room,
-      players: [...room.players.values()].map(pub),
-      history: room.history,
-      tally: question ? tally(p.room) : null,
-      myVote: question ? ((myVoteStmt.get(p.room, day.key, p.uid) || {}).choice || null) : null
-    });
+    send(p.ws, { t: 'init', you: p.id, room: p.room, players: [...room.players.values()].map(pub), history: room.history });
   }
 
   function leaveRoom(p) {
@@ -86,10 +69,9 @@ function attachRealtime(server, db, options) {
     if (room.players.size >= LIMITS.roomMax) return send(p.ws, { t: 'err', msg: `${room.def.name}이(가) 꽉 찼어요. 잠시 후 다시 들어가 보세요.` });
     const from = p.room;
     leaveRoom(p);
-    // 광장에서는 가운데 아래, 방에서는 휴게 공간(투표 구역 위)에 등장
-    const base = room.def.spawn || { x: 400, y: 225 };
-    p.x = Math.round(base.x + (Math.random() - 0.5) * 160);
-    p.y = Math.round(base.y + (Math.random() - 0.5) * 50);
+    // 문 앞에 조금씩 흩어져서 등장
+    p.x = Math.round(room.def.spawn.x + (Math.random() - 0.5) * 160);
+    p.y = Math.round(room.def.spawn.y + (Math.random() - 0.5) * 50);
     p.room = roomId;
     room.players.set(p.id, p);
     sendInit(p);
@@ -101,7 +83,10 @@ function attachRealtime(server, db, options) {
     if (!name) return send(p.ws, { t: 'err', msg: '닉네임을 입력해 주세요.' });
     const look = m.look && typeof m.look === 'object' ? m.look : {};
     p.name = cleanText(name);
-    p.look = { color: clampInt(look.color, 7), face: clampInt(look.face, 3), acc: clampInt(look.acc, 5) };
+    p.look = {
+      skin: clampInt(look.skin, 4), hair: clampInt(look.hair, 5), hairColor: clampInt(look.hairColor, 5),
+      top: clampInt(look.top, 7), bottom: clampInt(look.bottom, 5)
+    };
     if (p.ready) { // 캐릭터를 다시 꾸민 경우
       const room = rooms.get(p.room);
       if (room) broadcast(room, { t: 'upd', id: p.id, name: p.name, look: p.look });
@@ -120,20 +105,9 @@ function attachRealtime(server, db, options) {
     if (++p.moveCount > LIMITS.movesPerSec) return;
     if (!Number.isFinite(m.x) || !Number.isFinite(m.y)) return;
     const W = R.WORLD;
-    p.x = Math.round(clamp(m.x, W.margin, W.w - W.margin));
-    p.y = Math.round(clamp(m.y, W.wall + 20, W.h - W.margin));
-    const room = rooms.get(p.room);
-    broadcast(room, { t: 'm', id: p.id, x: p.x, y: p.y }, p);
-
-    // 투표 구역에 들어서면 그쪽이 내 표
-    if (!R.questionFor(room.def, day.index) || p.y < W.voteTop) return;
-    const choice = p.x < W.w / 2 ? 'A' : 'B';
-    const key = `${p.room}|${day.key}`;
-    if (p.votes.get(key) === choice) return;
-    voteStmt.run(p.room, day.key, p.uid, choice);
-    p.votes.set(key, choice);
-    send(p.ws, { t: 'voted', choice });
-    broadcast(room, Object.assign({ t: 'tally' }, tally(p.room)));
+    p.x = Math.round(clamp(m.x, W.margin, W.size - W.margin));
+    p.y = Math.round(clamp(m.y, W.margin, W.size - W.margin));
+    broadcast(rooms.get(p.room), { t: 'm', id: p.id, x: p.x, y: p.y }, p);
   }
 
   function onChat(p, m) {
@@ -164,7 +138,7 @@ function attachRealtime(server, db, options) {
     const p = {
       id: nextId++, uid, ws, ready: false, room: null, name: '', look: null, x: 0, y: 0,
       pid: crypto.createHmac('sha256', db.secret).update(uid).digest('hex').slice(0, 12),
-      votes: new Map(), lastChat: 0, lastReport: 0, moveWindow: 0, moveCount: 0
+      lastChat: 0, lastReport: 0, moveWindow: 0, moveCount: 0
     };
     ws.isAlive = true;
     ws.on('pong', () => { ws.isAlive = true; });
@@ -194,7 +168,7 @@ function attachRealtime(server, db, options) {
     wss.handleUpgrade(req, socket, head, (ws) => wss.emit('connection', ws, req));
   });
 
-  // 인원 수 알림, 끊긴 연결 정리, 자정(한국 시간)에 질문 교체
+  // 인원 수 알림, 끊긴 연결 정리, 자정(한국 시간)에 이야깃거리 교체
   const tick = setInterval(() => {
     const today = R.kstDay(opts.now());
     const dayChanged = today.key !== day.key;

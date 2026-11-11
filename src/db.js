@@ -12,15 +12,6 @@ function openDb(file) {
 
     CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 
-    -- 한 사람(uid)은 방마다 하루에 한 표. 자리를 옮기면 표가 바뀜.
-    CREATE TABLE IF NOT EXISTS votes (
-      room TEXT NOT NULL,
-      day TEXT NOT NULL,
-      uid TEXT NOT NULL,
-      choice TEXT NOT NULL CHECK (choice IN ('A','B')),
-      PRIMARY KEY (room, day, uid)
-    );
-
     CREATE TABLE IF NOT EXISTS reports (
       id INTEGER PRIMARY KEY,
       reporter_uid TEXT NOT NULL,

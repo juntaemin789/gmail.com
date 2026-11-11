@@ -46,7 +46,7 @@ function connect(uid, headers) {
     none: async (type, ms) => { await new Promise((r) => setTimeout(r, ms || 250)); return !queue.some((m) => m.t === type); },
     async enter(name, room) {
       await opened;
-      c.send({ t: 'hello', name, look: { color: 2, face: 1, acc: 4 }, room });
+      c.send({ t: 'hello', name, look: { skin: 2, hair: 1, hairColor: 4, top: 7, bottom: 3 }, room });
       const world = await c.next('world');
       const init = await c.next('init');
       return { world, init };
@@ -56,28 +56,33 @@ function connect(uid, headers) {
 }
 const uid = (n) => String(n).padStart(32, '0');
 
-test('방 정의: 광장의 문은 모두 실제 방으로 이어지고, 방마다 질문과 테마가 있다', () => {
+test('방 정의: 광장의 문은 모두 실제 방으로 이어지고, 방마다 주제와 나가는 문이 있다', () => {
   const plaza = R.BY_ID.get('plaza');
-  for (const p of plaza.portals) assert.ok(R.BY_ID.has(p.to), p.to);
+  const inRange = (v) => v >= R.WORLD.margin && v <= R.WORLD.size - R.WORLD.margin;
+  for (const p of plaza.portals) { assert.ok(R.BY_ID.has(p.to), p.to); assert.ok(inRange(p.x) && inRange(p.y)); }
   const themed = R.ROOMS.filter((r) => r.id !== 'plaza');
   assert.strictEqual(themed.length, plaza.portals.length);
-  for (const r of themed) {
-    assert.ok(r.questions.length >= 5, r.id);
-    assert.ok(r.theme.a && r.theme.b && r.group && r.npc, r.id);
-    // 등장 위치(휴게 공간)가 투표 구역 밖이어야 들어오자마자 투표되지 않음
-    assert.ok(225 + 25 < R.WORLD.voteTop);
+  for (const r of R.ROOMS) {
+    assert.ok(r.group && r.desc, r.id);
+    // 등장 위치가 문에서 충분히 떨어져 있어야 들어오자마자 다시 나가지 않음 (문 반경 0.9m = 36)
+    // 등장 위치는 가로 ±80, 세로 ±25 범위에서 흩어짐
+    for (const p of r.portals) assert.ok(Math.abs(p.x - r.spawn.x) - 80 > 36 || Math.abs(p.y - r.spawn.y) - 25 > 36, r.id);
   }
-  assert.strictEqual(new Set(themed.map((r) => r.theme.floor)).size, themed.length);
+  for (const r of themed) {
+    assert.ok(r.topics.length >= 5, r.id);
+    assert.deepStrictEqual(r.portals.map((p) => p.to), ['plaza']);
+  }
+  assert.strictEqual(new Set(themed.map((r) => r.group)).size, themed.length);
 });
 
-test('질문은 한국 시간 기준으로 하루에 하나씩 바뀐다', () => {
-  const room = R.BY_ID.get('food');
+test('이야깃거리는 한국 시간 기준으로 하루에 하나씩 바뀐다', () => {
+  const room = R.BY_ID.get('pocha');
   const d1 = R.kstDay(Date.UTC(2026, 0, 1, 14, 59)); // 한국 1월 1일 23:59
   const d2 = R.kstDay(Date.UTC(2026, 0, 1, 15, 0));  // 한국 1월 2일 00:00
   assert.strictEqual(d1.key, '2026-01-01');
   assert.strictEqual(d2.key, '2026-01-02');
-  assert.notDeepStrictEqual(R.questionFor(room, d1.index), R.questionFor(room, d2.index));
-  assert.strictEqual(R.questionFor(R.BY_ID.get('plaza'), d1.index), null);
+  assert.notStrictEqual(R.topicFor(room, d1.index), R.topicFor(room, d2.index));
+  assert.strictEqual(R.topicFor(R.BY_ID.get('plaza'), d1.index), null);
 });
 
 test('입장하면 광장에서 시작하고, 방을 옮기면 서로 보인다', async () => {
@@ -85,64 +90,33 @@ test('입장하면 광장에서 시작하고, 방을 옮기면 서로 보인다'
   const ea = await a.enter('철수');
   assert.strictEqual(ea.init.room, 'plaza');
   assert.strictEqual(ea.world.rooms.length, 7);
-  assert.strictEqual(ea.init.tally, null);
+  assert.ok(ea.world.rooms.find((r) => r.id === 'cafe').topic);
 
-  const eb = await b.enter('  영희  ', 'food');
-  assert.strictEqual(eb.init.room, 'food');
-  assert.deepStrictEqual(eb.init.tally, { A: 0, B: 0 });
+  const eb = await b.enter('  영희  ', 'pocha');
+  assert.strictEqual(eb.init.room, 'pocha');
   assert.strictEqual(eb.init.players[0].name, '영희');
 
-  a.send({ t: 'join', room: 'food' });
+  a.send({ t: 'join', room: 'pocha' });
   const init = await a.next('init');
   assert.strictEqual(init.players.length, 2);
   const joined = await b.next('join');
   assert.strictEqual(joined.p.name, '철수');
-  assert.deepStrictEqual(joined.p.look, { color: 2, face: 1, acc: 4 });
+  assert.deepStrictEqual(joined.p.look, { skin: 2, hair: 1, hairColor: 4, top: 7, bottom: 3 });
 
   a.ws.close();
   assert.strictEqual((await b.next('leave')).id, init.you);
   b.ws.close();
 });
 
-test('투표 구역에 서면 투표되고, 반대쪽으로 가면 표가 바뀌며, 한 사람은 한 표다', async () => {
-  const a = connect(uid(3)), b = connect(uid(4));
-  await a.enter('가', 'office');
-  await b.enter('나', 'office');
-  await a.next('join');
-
-  // 휴게 공간에서는 투표되지 않음
-  a.send({ t: 'm', x: 300, y: 200 });
-  assert.strictEqual((await b.next('m')).y, 200);
-  assert.ok(await a.none('voted'));
-
-  a.send({ t: 'm', x: 150, y: 600 });
-  assert.strictEqual((await a.next('voted')).choice, 'A');
-  assert.deepStrictEqual(await b.next('tally'), { t: 'tally', A: 1, B: 0 });
-
-  b.send({ t: 'm', x: 650, y: 600 });
-  assert.strictEqual((await b.next('voted')).choice, 'B');
-  await a.next('tally'); await a.next('tally');
-
-  a.send({ t: 'm', x: 700, y: 500 });
-  assert.strictEqual((await a.next('voted')).choice, 'B');
-  assert.deepStrictEqual(await b.next('tally'), { t: 'tally', A: 1, B: 1 }); // b 자신의 투표 알림
-  assert.deepStrictEqual(await b.next('tally'), { t: 'tally', A: 0, B: 2 });
-  assert.strictEqual(db.prepare("SELECT COUNT(*) AS n FROM votes WHERE room = 'office'").get().n, 2);
-
-  // 같은 사람(같은 쿠키)이 다시 접속하면 내 표가 기억되어 있음
-  a.ws.close();
-  const again = connect(uid(3));
-  assert.strictEqual((await again.enter('가', 'office')).init.myVote, 'B');
-  again.ws.close(); b.ws.close();
-});
-
-test('좌표는 방 안으로 제한되고 잘못된 값은 무시된다', async () => {
+test('이동은 같은 방 사람에게 전달되고, 좌표는 방 안으로 제한되며, 잘못된 값은 무시된다', async () => {
   const a = connect(uid(5)), b = connect(uid(6));
-  await a.enter('가', 'game'); await b.enter('나', 'game'); await a.next('join');
+  const ea = await a.enter('가', 'pcroom'); await b.enter('나', 'pcroom'); await a.next('join');
+  a.send({ t: 'm', x: 300, y: 200 });
+  assert.deepStrictEqual(await b.next('m'), { t: 'm', id: ea.init.you, x: 300, y: 200 });
   a.send({ t: 'm', x: -9999, y: 99999 });
   const m = await b.next('m');
   assert.strictEqual(m.x, R.WORLD.margin);
-  assert.strictEqual(m.y, R.WORLD.h - R.WORLD.margin);
+  assert.strictEqual(m.y, R.WORLD.size - R.WORLD.margin);
   a.send({ t: 'm', x: 'abc', y: null });
   a.ws.send('not json');
   assert.ok(await b.none('m'));
@@ -151,7 +125,7 @@ test('좌표는 방 안으로 제한되고 잘못된 값은 무시된다', async
 
 test('채팅은 같은 방에만 전달되고, 길이 제한·도배 방지·욕설 가림이 적용된다', async () => {
   const a = connect(uid(7)), b = connect(uid(8)), other = connect(uid(9));
-  await a.enter('가', 'love'); await b.enter('나', 'love'); await other.enter('다', 'money');
+  await a.enter('가', 'lounge'); await b.enter('나', 'lounge'); await other.enter('다', 'rooftop');
   a.send({ t: 'c', text: '  안녕 ' + 'ㅋ'.repeat(200) });
   const c = await b.next('c');
   assert.strictEqual(c.name, '가');
@@ -164,7 +138,7 @@ test('채팅은 같은 방에만 전달되고, 길이 제한·도배 방지·욕
 
   // 나중에 들어온 사람은 최근 대화를 볼 수 있음
   const late = connect(uid(10));
-  assert.strictEqual((await late.enter('라', 'love')).init.history.length, 1);
+  assert.strictEqual((await late.enter('라', 'lounge')).init.history.length, 1);
   [a, b, other, late].forEach((x) => x.ws.close());
 });
 
@@ -174,16 +148,16 @@ test('닉네임 없이는 입장할 수 없고, 입장 전 메시지는 무시�
   a.send({ t: 'c', text: '입장 전' });
   a.send({ t: 'hello', name: '   ', look: {} });
   assert.match((await a.next('err')).msg, /닉네임/);
-  a.send({ t: 'hello', name: '<b>이름</b>이아주아주길다', look: { color: 99, face: -1, acc: 'x' } });
+  a.send({ t: 'hello', name: '<b>이름</b>이아주아주길다', look: { skin: 99, hair: -1, top: 'x' } });
   const init = await a.next('init');
   assert.strictEqual(init.players[0].name.length, 10);
-  assert.deepStrictEqual(init.players[0].look, { color: 0, face: 0, acc: 0 });
+  assert.deepStrictEqual(init.players[0].look, { skin: 0, hair: 0, hairColor: 0, top: 0, bottom: 0 });
   a.ws.close();
 });
 
 test('신고는 기록되고, 다른 사이트에서 연 웹소켓은 거부된다', async () => {
   const a = connect(uid(12));
-  await a.enter('가', 'campus');
+  await a.enter('가', 'study');
   a.send({ t: 'report', pid: 'abcdef012345', name: '나쁜사람', text: '문제의 말' });
   assert.match((await a.next('note')).msg, /신고/);
   assert.strictEqual(db.prepare('SELECT COUNT(*) AS n FROM reports').get().n, 1);
@@ -199,4 +173,7 @@ test('웹 페이지가 열리고 익명 쿠키가 발급된다', async () => {
   assert.match(res.headers.get('set-cookie'), /^uid=[0-9a-f]{32}; Path=\/; HttpOnly/);
   assert.match(await res.text(), /쉼표/);
   assert.strictEqual((await fetch(`http://127.0.0.1:${port}/healthz`)).status, 200);
+  const lib = await fetch(`http://127.0.0.1:${port}/vendor/three.module.js`);
+  assert.strictEqual(lib.status, 200);
+  assert.match(lib.headers.get('content-type'), /javascript/);
 });

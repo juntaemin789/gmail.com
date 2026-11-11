@@ -2,55 +2,51 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>쉼표 - 걸어 다니며 투표하는 찬반 광장</title>
-<meta name="description" content="쉬는 시간에 들르는 찬반 광장. 캐릭터를 만들어 방을 돌아다니고, 서 있는 쪽으로 투표하고, 수다를 떨어요.">
-<meta name="theme-color" content="#5b5bd6">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>쉼표 - 걸어 다니며 수다 떠는 3D 광장</title>
+<meta name="description" content="쉬는 시간에 들르는 3D 광장. 아바타를 만들어 카페, 라운지, PC방, 포장마차, 스터디룸, 루프탑을 돌아다니며 이야기해요.">
+<meta name="theme-color" content="#14161c">
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
 
-<!-- 입장 화면: 닉네임과 캐릭터 꾸미기 -->
+<!-- 입장 화면: 닉네임과 아바타 꾸미기 -->
 <section id="entry">
   <div class="entry-card">
-    <h1>쉼표 <span>,</span></h1>
-    <p class="tagline">걸어가서 서면 그게 내 한 표.<br>쉬는 시간에 들르는 찬반 광장</p>
-    <canvas id="preview" width="200" height="200" aria-label="내 캐릭터 미리보기"></canvas>
+    <div class="entry-left">
+      <h1>쉼표<span>,</span></h1>
+      <p class="tagline">쉬는 시간에 들르는 3D 광장</p>
+      <canvas id="preview" aria-label="내 아바타 미리보기"></canvas>
+    </div>
     <form id="entryForm">
       <label for="nameInput">닉네임</label>
       <input id="nameInput" maxlength="10" autocomplete="off" placeholder="최대 10자" required>
-      <div class="pick-label">색깔</div>
-      <div class="picks" id="colorPicks"></div>
-      <div class="pick-label">표정</div>
-      <div class="picks" id="facePicks"></div>
-      <div class="pick-label">꾸미기</div>
-      <div class="picks" id="accPicks"></div>
+      <div class="pick-label">피부</div><div class="picks" id="skinPicks"></div>
+      <div class="pick-label">머리 모양</div><div class="picks" id="hairPicks"></div>
+      <div class="pick-label">머리 색</div><div class="picks" id="hairColorPicks"></div>
+      <div class="pick-label">상의</div><div class="picks" id="topPicks"></div>
+      <div class="pick-label">하의</div><div class="picks" id="bottomPicks"></div>
       <button class="primary" id="enterBtn">입장하기</button>
+      <p class="fine">회원가입 없이 바로 들어가요. 닉네임과 채팅은 다른 사람에게 보입니다.</p>
     </form>
-    <p class="fine">회원가입 없이 바로 들어가요. 닉네임과 채팅은 다른 사람에게 보입니다.</p>
   </div>
 </section>
 
-<!-- 광장·방 화면 -->
+<!-- 3D 공간 -->
 <section id="game" hidden>
+  <canvas id="world"></canvas>
+  <div id="labels" aria-hidden="true"></div>
+
   <header id="top">
-    <button id="roomsBtn" type="button">🗺️ 방 목록</button>
-    <div id="roomTitle"></div>
-    <button id="editBtn" type="button" aria-label="내 캐릭터 바꾸기">🎨</button>
+    <button id="roomsBtn" type="button">방 목록</button>
+    <div id="roomInfo"><b id="roomTitle"></b><span id="roomTopic"></span></div>
+    <button id="editBtn" type="button">내 아바타</button>
   </header>
 
-  <div id="qbar">
-    <div id="qtext"></div>
-    <div id="choices">
-      <button type="button" class="choice a" id="btnA"><span class="fill"></span><span class="txt"></span><span class="pct"></span></button>
-      <button type="button" class="choice b" id="btnB"><span class="fill"></span><span class="txt"></span><span class="pct"></span></button>
-    </div>
-    <div id="qhint"></div>
-  </div>
+  <div id="status" hidden></div>
+  <div id="hint">화면을 누르면 그곳으로 걸어가요 · 드래그하면 시점이 돌아가요</div>
 
-  <div id="stage"><canvas id="world"></canvas><div id="status" hidden></div></div>
-
-  <div id="side">
+  <div id="chat">
     <div id="log" aria-live="polite"></div>
     <form id="chatForm">
       <input id="chatInput" maxlength="80" autocomplete="off" placeholder="메시지 입력" enterkeyhint="send">
@@ -78,7 +74,6 @@
   </div>
 </div>
 
-<script src="/character.js"></script>
-<script src="/app.js"></script>
+<script type="module" src="/app.js"></script>
 </body>
 </html>
