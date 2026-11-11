@@ -6,6 +6,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
+    "build:html": "node scripts/build-html.js",
     "test": "node --test --test-reporter=spec tests/*.test.js"
   },
   "engines": {
@@ -16,5 +17,8 @@
     "express": "^5.3.0",
     "three": "^0.187.0",
     "ws": "^8.22.2"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
   }
 }

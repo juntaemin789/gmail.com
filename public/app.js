@@ -199,7 +199,54 @@ const me = () => players.get(myId);
 // ---------- 서버 연결 ----------
 function send(msg) { if (ws && ws.readyState === 1) ws.send(JSON.stringify(msg)); }
 
+// 서버 없이 여는 미리보기 파일(preview.html)용: 서버가 하던 일을 브라우저 안에서 흉내 냄.
+// 혼자 둘러보는 모드이고, 분위기를 보여 주는 예시 손님 두 명이 돌아다님.
+function offlineSocket(data) {
+  const sock = { readyState: 1, onmessage: null };
+  const emit = (m) => setTimeout(() => sock.onmessage && sock.onmessage({ data: JSON.stringify(m) }), 0);
+  const day = Math.floor((Date.now() + 9 * 3600 * 1000) / 86400000);
+  const list = data.rooms.map((r) => ({ id: r.id, name: r.name, group: r.group, desc: r.desc, portals: r.portals, topic: r.topics ? r.topics[day % r.topics.length] : null }));
+  const LINES = ['안녕하세요!', '여기 분위기 좋네요', '오늘 이야깃거리 어떻게 생각하세요?', '저도 방금 들어왔어요', 'ㅎㅎ 맞아요', '잠깐 쉬러 왔어요'];
+  const rand = (a, b) => a + Math.random() * (b - a);
+  let self = null, room = null, bots = [], timer = null;
+  function enter(id) {
+    const def = data.rooms.find((r) => r.id === id) || data.rooms[0];
+    room = def.id;
+    self.x = Math.round(def.spawn.x + rand(-80, 80)); self.y = Math.round(def.spawn.y + rand(-25, 25));
+    // 예시 손님은 어느 방에서나 비어 있는 문 앞 통로에서만 움직임
+    bots = [0, 1].map((i) => ({ id: 9001 + i, pid: 'preview00000' + i, name: '예시 손님' + 'AB'[i], look: randomLook(), x: toU(rand(-3.2, 3.2)), y: toU(rand(4.8, 5.7)) }));
+    emit({ t: 'init', you: 1, room, players: [self, ...bots], history: [] });
+    clearInterval(timer);
+    timer = setInterval(() => {
+      const b = bots[Math.floor(Math.random() * bots.length)];
+      if (Math.random() < 0.6) { b.x = toU(rand(-3.2, 3.2)); b.y = toU(rand(4.8, 5.7)); emit({ t: 'm', id: b.id, x: b.x, y: b.y }); }
+      else emit({ t: 'c', id: b.id, pid: b.pid, name: b.name, text: LINES[Math.floor(Math.random() * LINES.length)], ts: Date.now() });
+    }, 3500);
+  }
+  sock.send = (raw) => {
+    const m = JSON.parse(raw);
+    if (m.t === 'hello') {
+      const first = !self;
+      self = Object.assign(self || { id: 1, pid: 'preview0self' }, { name: m.name, look: m.look });
+      if (!first) return emit({ t: 'upd', id: 1, name: m.name, look: m.look });
+      emit({ t: 'world', world: data.world, rooms: list, counts: {}, day: '' });
+      enter(m.room || 'plaza');
+      emit({ t: 'note', msg: '미리보기 모드: 혼자 둘러보는 중이에요. 다른 사람과 만나려면 서버가 필요해요.' });
+    } else if (m.t === 'join') enter(m.room);
+    else if (m.t === 'c') emit({ t: 'c', id: 1, pid: self.pid, name: self.name, text: String(m.text).slice(0, 80), ts: Date.now() });
+    else if (m.t === 'report') emit({ t: 'note', msg: '미리보기 모드에서는 신고가 저장되지 않아요.' });
+  };
+  return sock;
+}
+
 function connect() {
+  if (window.__SWIMPYO_OFFLINE__) {
+    ws = offlineSocket(window.__SWIMPYO_OFFLINE__);
+    ws.onmessage = (ev) => { const m = JSON.parse(ev.data); if (handlers[m.t]) handlers[m.t](m); };
+    connected = true;
+    send({ t: 'hello', name: profile.name, look: profile.look, room: 'plaza' });
+    return;
+  }
   ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws');
   ws.onopen = () => {
     connected = true; toast('');
