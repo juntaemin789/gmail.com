@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>퇴직금 계산기 - 머니계산기</title>
+  <meta name="description" content="입사일, 퇴직일, 최근 3개월 급여로 예상 퇴직금을 계산합니다. 1일 평균임금과 재직일수까지 한 번에 확인.">
+  <link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+  <header class="site"><div class="inner">
+    <a class="logo" href="../">💰 머니계산기</a>
+    <nav><a href="../salary/">연봉</a><a href="../loan/">대출</a><a href="../severance/">퇴직금</a></nav>
+  </div></header>
+
+  <main>
+    <h1>퇴직금 계산기</h1>
+    <p class="lead">1년 이상 일했다면 퇴직금을 받을 수 있어요. 예상 금액을 확인해 보세요.</p>
+
+    <form class="card" id="form">
+      <div class="row">
+        <div>
+          <label for="start">입사일</label>
+          <input id="start" type="date" required>
+        </div>
+        <div>
+          <label for="end">퇴직일 <small>마지막 근무일 다음 날</small></label>
+          <input id="end" type="date" required>
+        </div>
+      </div>
+      <label for="wage">퇴직 전 3개월 급여 총액 <small>세전, 기본급+수당</small></label>
+      <input id="wage" data-money placeholder="예: 9,000,000" required>
+      <div class="row">
+        <div>
+          <label for="bonus">연간 상여금 <small>선택</small></label>
+          <input id="bonus" data-money value="0">
+        </div>
+        <div>
+          <label for="leave">연차수당 <small>선택</small></label>
+          <input id="leave" data-money value="0">
+        </div>
+      </div>
+      <button class="primary" type="submit">계산하기</button>
+    </form>
+
+    <section class="card hidden" id="result">
+      <div class="result-big">
+        <div class="label">예상 퇴직금 (세전)</div>
+        <div class="value" id="pay"></div>
+        <div class="label" id="msg"></div>
+      </div>
+      <table><tbody>
+        <tr><td>재직일수</td><td id="days"></td></tr>
+        <tr><td>최근 3개월 일수</td><td id="days3m"></td></tr>
+        <tr><td>1일 평균임금</td><td id="daily"></td></tr>
+      </tbody></table>
+    </section>
+
+    <div class="ad-slot">광고 영역</div>
+
+    <section class="card content">
+      <h2>퇴직금 계산 공식</h2>
+      <p><b>퇴직금 = 1일 평균임금 × 30일 × (재직일수 ÷ 365)</b></p>
+      <ul>
+        <li>1일 평균임금 = 퇴직 전 3개월 임금 총액 ÷ 그 기간의 총 일수</li>
+        <li>상여금과 연차수당은 연간 금액의 3/12만큼 3개월 임금에 더합니다.</li>
+        <li>계속 근로기간이 1년 이상이고 4주 평균 주 15시간 이상 일한 경우에 받을 수 있습니다.</li>
+      </ul>
+      <p class="notice">퇴직소득세는 반영하지 않은 세전 금액입니다. 1일 평균임금이 통상임금보다 적으면 통상임금으로 계산합니다.</p>
+    </section>
+  </main>
+
+  <footer class="site"><div class="inner">
+    <a href="../privacy/">개인정보처리방침</a>
+    <div>© 머니계산기</div>
+  </div></footer>
+
+  <script src="../assets/calc.js"></script>
+  <script src="../assets/ui.js"></script>
+  <script>
+    function toDate(v) { var p = v.split('-'); return new Date(+p[0], +p[1] - 1, +p[2]); }
+    document.getElementById('form').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var start = toDate(document.getElementById('start').value);
+      var end = toDate(document.getElementById('end').value);
+      if (end <= start) { alert('퇴직일은 입사일보다 뒤여야 합니다.'); return; }
+      var r = Calc.severance(start, end,
+        parseNum(document.getElementById('wage')),
+        parseNum(document.getElementById('bonus')),
+        parseNum(document.getElementById('leave')));
+      document.getElementById('pay').textContent = won(r.severancePay);
+      document.getElementById('msg').textContent = r.eligible ? '' : '재직 1년 미만이라 퇴직금 지급 대상이 아닙니다.';
+      document.getElementById('days').textContent = r.serviceDays.toLocaleString('ko-KR') + '일';
+      document.getElementById('days3m').textContent = r.days3m + '일';
+      document.getElementById('daily').textContent = won(r.dailyAverageWage);
+      document.getElementById('result').classList.remove('hidden');
+    });
+  </script>
+</body>
+</html>
