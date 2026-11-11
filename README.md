@@ -37,19 +37,20 @@ npm test       # 자동 테스트
 | 환경 변수 | 기본값 | 설명 |
 |---|---|---|
 | `PORT` | `3000` | 서버 포트 |
-| `DB_PATH` | `data/ilgam.db` | SQLite 데이터 파일 위치 |
+| `DB_PATH` | `data/ilgam.db` | SQLite 데이터 파일 위치. Railway 볼륨이 있으면 자동으로 볼륨 안에 저장 |
 
 ## 인터넷에 올리기
 
-이 사이트는 서버와 데이터 파일이 필요해서 GitHub Pages에는 올릴 수 없습니다. 저장소에 Render용 설정 파일(`render.yaml`)이 들어 있습니다.
+이 사이트는 서버와 데이터 파일이 필요해서 GitHub Pages에는 올릴 수 없습니다. 저장소에 Railway용 설정 파일(`railway.json`)이 들어 있습니다.
 
-1. [render.com](https://render.com)에 GitHub 계정으로 가입합니다.
-2. 대시보드에서 **New → Blueprint**를 누르고 이 저장소를 선택합니다.
-3. **Apply**를 누르면 몇 분 뒤 `https://ilgam-xxxx.onrender.com` 같은 주소가 생깁니다.
+1. [railway.com](https://railway.com)에 GitHub 계정으로 로그인합니다.
+2. **New Project → Deploy from GitHub repo**를 누르고 이 저장소를 선택합니다. 자동으로 빌드와 배포가 시작됩니다.
+3. 만들어진 서비스를 눌러 **Settings → Networking → Generate Domain**을 누르면 `https://....up.railway.app` 주소가 생깁니다.
+4. **데이터 유지 설정 (중요)**: 프로젝트 화면에서 서비스를 우클릭해 **Attach Volume**을 누르고 Mount path에 `/data`를 입력합니다. 볼륨을 붙이지 않으면 배포할 때마다 회원과 공고 데이터가 지워집니다. 볼륨을 붙이면 서버가 자동으로 그 안에 데이터를 저장합니다.
 
-**무료 플랜 주의**: 서버가 쉬었다가 다시 켜질 때마다 회원과 공고 데이터가 모두 지워집니다. 화면을 체험해 보는 용도로만 쓰세요. 실제로 운영하려면 `render.yaml`에서 `plan`을 `starter`(유료)로 바꾸고 `disk`와 `DB_PATH` 주석을 풀어 데이터가 유지되게 해야 합니다.
+Railway는 체험 크레딧을 다 쓰면 유료입니다. 요금은 Railway 가격 페이지에서 확인하세요.
 
-Railway, Fly.io, 일반 VPS 등 디스크가 유지되는 다른 Node.js 호스팅도 쓸 수 있습니다. `DB_PATH`를 그 디스크 경로로 지정하고, 반드시 HTTPS로 서비스하세요.
+Render, Fly.io, 일반 VPS 등 디스크가 유지되는 다른 Node.js 호스팅도 쓸 수 있습니다. `DB_PATH` 환경 변수를 그 디스크 안의 파일 경로로 지정하고, 반드시 HTTPS로 서비스하세요.
 
 ## 구조
 

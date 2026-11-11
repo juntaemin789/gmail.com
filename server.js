@@ -355,7 +355,11 @@ function createApp(db) {
 }
 
 if (require.main === module) {
-  const db = openDb(process.env.DB_PATH || path.join(__dirname, 'data', 'ilgam.db'));
+  // Railway에서 볼륨을 붙이면 RAILWAY_VOLUME_MOUNT_PATH가 자동으로 설정됨 → 데이터가 유지되는 그곳에 저장
+  const volume = process.env.RAILWAY_VOLUME_MOUNT_PATH;
+  const dbPath = process.env.DB_PATH || path.join(volume || path.join(__dirname, 'data'), 'ilgam.db');
+  console.log(`데이터 파일: ${dbPath}`);
+  const db = openDb(dbPath);
   db.prepare('DELETE FROM sessions WHERE expires_at < ?').run(Date.now());
   const port = Number(process.env.PORT) || 3000;
   createApp(db).listen(port, () => console.log(`일감 서버 실행 중: http://localhost:${port}`));
