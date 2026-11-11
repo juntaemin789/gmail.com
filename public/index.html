@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>쉼표 - 걸어 다니며 투표하는 찬반 광장</title>
+<meta name="description" content="쉬는 시간에 들르는 찬반 광장. 캐릭터를 만들어 방을 돌아다니고, 서 있는 쪽으로 투표하고, 수다를 떨어요.">
+<meta name="theme-color" content="#5b5bd6">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<!-- 입장 화면: 닉네임과 캐릭터 꾸미기 -->
+<section id="entry">
+  <div class="entry-card">
+    <h1>쉼표 <span>,</span></h1>
+    <p class="tagline">걸어가서 서면 그게 내 한 표.<br>쉬는 시간에 들르는 찬반 광장</p>
+    <canvas id="preview" width="200" height="200" aria-label="내 캐릭터 미리보기"></canvas>
+    <form id="entryForm">
+      <label for="nameInput">닉네임</label>
+      <input id="nameInput" maxlength="10" autocomplete="off" placeholder="최대 10자" required>
+      <div class="pick-label">색깔</div>
+      <div class="picks" id="colorPicks"></div>
+      <div class="pick-label">표정</div>
+      <div class="picks" id="facePicks"></div>
+      <div class="pick-label">꾸미기</div>
+      <div class="picks" id="accPicks"></div>
+      <button class="primary" id="enterBtn">입장하기</button>
+    </form>
+    <p class="fine">회원가입 없이 바로 들어가요. 닉네임과 채팅은 다른 사람에게 보입니다.</p>
+  </div>
+</section>
+
+<!-- 광장·방 화면 -->
+<section id="game" hidden>
+  <header id="top">
+    <button id="roomsBtn" type="button">🗺️ 방 목록</button>
+    <div id="roomTitle"></div>
+    <button id="editBtn" type="button" aria-label="내 캐릭터 바꾸기">🎨</button>
+  </header>
+
+  <div id="qbar">
+    <div id="qtext"></div>
+    <div id="choices">
+      <button type="button" class="choice a" id="btnA"><span class="fill"></span><span class="txt"></span><span class="pct"></span></button>
+      <button type="button" class="choice b" id="btnB"><span class="fill"></span><span class="txt"></span><span class="pct"></span></button>
+    </div>
+    <div id="qhint"></div>
+  </div>
+
+  <div id="stage"><canvas id="world"></canvas><div id="status" hidden></div></div>
+
+  <div id="side">
+    <div id="log" aria-live="polite"></div>
+    <form id="chatForm">
+      <input id="chatInput" maxlength="80" autocomplete="off" placeholder="메시지 입력" enterkeyhint="send">
+      <button class="primary">전송</button>
+    </form>
+  </div>
+</section>
+
+<!-- 방 목록 -->
+<div id="roomsPanel" class="overlay" hidden>
+  <div class="sheet">
+    <div class="sheet-head"><h2>어디로 갈까요?</h2><button type="button" id="roomsClose" aria-label="닫기">✕</button></div>
+    <div id="roomCards"></div>
+    <div class="ad-slot">광고 영역</div>
+  </div>
+</div>
+
+<!-- 채팅 상대 메뉴 -->
+<div id="userMenu" class="overlay" hidden>
+  <div class="sheet small">
+    <h2 id="userMenuName"></h2>
+    <button type="button" id="blockBtn">이 사람 채팅 숨기기</button>
+    <button type="button" id="reportBtn">신고하기</button>
+    <button type="button" id="userMenuClose">닫기</button>
+  </div>
+</div>
+
+<script src="/character.js"></script>
+<script src="/app.js"></script>
+</body>
+</html>
